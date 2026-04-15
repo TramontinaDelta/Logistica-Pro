@@ -36,34 +36,22 @@ export const loadingService = {
     }
 
     try {
-      // Usando POST com text/plain evita o preflight (OPTIONS) do CORS
-      // O Apps Script vai receber o JSON em e.postData.contents perfeitamente
+      // Usando application/x-www-form-urlencoded para que o Apps Script 
+      // consiga ler os dados diretamente em e.parameter
+      const params = new URLSearchParams();
+      params.append('action', 'salvarNovoCard');
+      params.append('rota', route.deliveries.map(d => d.clientName).join(', '));
+      params.append('dataSep', new Date().toLocaleDateString('pt-BR'));
+      params.append('qtd', route.deliveries.length.toString());
+      params.append('nRotaLog', route.routeNumber);
+
       await fetch(GAS_WEB_APP_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
-          'Content-Type': 'text/plain',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
-          action: 'salvarNovoCard',
-          dados: {
-            rota: route.deliveries.map(d => d.clientName).join(', '),
-            dataSep: new Date().toLocaleDateString('pt-BR'),
-            veiculo: '',
-            conferente: '',
-            nRota: '', 
-            valor: 'R$ 0,00',
-            iniSep: '',
-            fimSep: '',
-            qtd: route.deliveries.length.toString(),
-            iniCar: '',
-            fimCar: '',
-            motorista: '',
-            doca: '',
-            planta: '',
-            nRotaLog: route.routeNumber
-          }
-        }),
+        body: params.toString(),
       });
       
       return true;
