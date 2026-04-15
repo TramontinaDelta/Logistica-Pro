@@ -6,12 +6,8 @@
 // Document ID: auto-generated
 // Fields:
 //   - routeNumber: string (required)
-//   - deliveryLocation: string (required)
-//   - uf: string (required)
-//   - region: string (required)
-//   - clientName: string (required)
-//   - orderNumber: string (required)
-//   - invoiceNumber: string (required)
+//   - type: string (required, 'nova' or 'final_mes')
+//   - deliveries: list (required, list of objects)
 //   - deliveryDate: string (required)
 //   - createdAt: number (required)
 //   - createdBy: string (required)
@@ -22,10 +18,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -34,33 +26,32 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function isValidDelivery(delivery) {
+      return delivery.location is string && delivery.location.size() > 0 &&
+             delivery.uf is string && delivery.uf.size() == 2 &&
+             delivery.region is string &&
+             delivery.clientName is string &&
+             delivery.orderNumber is string &&
+             delivery.invoiceNumber is string;
+    }
+
     function isValidRoute(data) {
-      return data.keys().hasAll(['routeNumber', 'deliveryLocation', 'uf', 'region', 'clientName', 'orderNumber', 'invoiceNumber', 'deliveryDate', 'createdAt', 'createdBy']) &&
-             data.routeNumber is string && data.routeNumber.size() > 0 && data.routeNumber.size() < 50 &&
-             data.deliveryLocation is string && data.deliveryLocation.size() > 0 && data.deliveryLocation.size() < 200 &&
-             data.uf is string && data.uf.size() == 2 &&
-             data.region is string && data.region.size() > 0 && data.region.size() < 100 &&
-             data.clientName is string && data.clientName.size() > 0 && data.clientName.size() < 200 &&
-             data.orderNumber is string && data.orderNumber.size() > 0 && data.orderNumber.size() < 50 &&
-             data.invoiceNumber is string && data.invoiceNumber.size() > 0 && data.invoiceNumber.size() < 50 &&
-             data.deliveryDate is string && data.deliveryDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+      return data.keys().hasAll(['routeNumber', 'type', 'deliveries', 'deliveryDate', 'createdAt', 'createdBy']) &&
+             data.routeNumber is string && data.routeNumber.size() > 0 &&
+             data.type in ['nova', 'final_mes'] &&
+             data.deliveries is list &&
+             data.deliveryDate is string &&
              data.createdAt is number &&
              data.createdBy is string && data.createdBy == request.auth.uid;
     }
 
     match /routes/{routeId} {
-      // Qualquer usuário autenticado pode ler as rotas (colaboração)
       allow read: if isAuthenticated();
-      
-      // Apenas o criador pode criar ou editar sua própria rota
       allow create: if isAuthenticated() && isValidRoute(request.resource.data);
-      
       allow update: if isAuthenticated() && 
                     isValidRoute(request.resource.data) && 
                     resource.data.createdBy == request.auth.uid &&
-                    request.resource.data.createdBy == resource.data.createdBy &&
-                    request.resource.data.createdAt == resource.data.createdAt;
-      
+                    request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
     }
     
