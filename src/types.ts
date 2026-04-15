@@ -5,12 +5,14 @@ export interface DeliveryDetail {
   clientName: string;
   orderNumber: string;
   invoiceNumber: string;
+  status?: 'pendente' | 'carregado';
 }
 
 export interface Route {
   id: string;
   routeNumber: string;
-  type: 'nova' | 'final_mes';
+  type: 'nova' | 'antiga';
+  cargoType: 'plastico' | 'porcelana' | 'consolidado';
   deliveries: DeliveryDetail[];
   deliveryDate: string;
   createdAt: number;

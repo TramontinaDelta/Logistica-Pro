@@ -82,11 +82,13 @@ const INITIAL_DELIVERY: DeliveryDetail = {
   clientName: '',
   orderNumber: '',
   invoiceNumber: '',
+  status: 'pendente',
 };
 
 const INITIAL_FORM_DATA: RouteFormData = {
   routeNumber: '',
   type: 'nova',
+  cargoType: 'consolidado',
   deliveries: [{ ...INITIAL_DELIVERY }],
   deliveryDate: new Date().toISOString().split('T')[0],
 };
@@ -197,6 +199,7 @@ export default function App() {
     setFormData({
       routeNumber: route.routeNumber,
       type: route.type,
+      cargoType: route.cargoType || 'consolidado',
       deliveries: route.deliveries,
       deliveryDate: route.deliveryDate,
     });
@@ -245,12 +248,37 @@ export default function App() {
   });
 
   const routesNova = filteredRoutes.filter(r => r.type === 'nova');
-  const routesFinalMes = filteredRoutes.filter(r => r.type === 'final_mes');
+  const routesAntiga = filteredRoutes.filter(r => r.type === 'antiga');
+
+  const getCargoStats = (routeList: Route[]) => {
+    return {
+      plastico: routeList.filter(r => r.cargoType === 'plastico').length,
+      porcelana: routeList.filter(r => r.cargoType === 'porcelana').length,
+      consolidado: routeList.filter(r => r.cargoType === 'consolidado').length,
+    };
+  };
+
+  const calculateLoadingPercentage = (routeList: Route[]) => {
+    if (routeList.length === 0) return 0;
+    const totalDeliveries = routeList.reduce((acc, r) => acc + r.deliveries.length, 0);
+    const loadedDeliveries = routeList.reduce((acc, r) => 
+      acc + r.deliveries.filter(d => d.status === 'carregado').length, 0
+    );
+    return Math.round((loadedDeliveries / totalDeliveries) * 100) || 0;
+  };
 
   const stats = {
-    today: routes.filter(r => r.deliveryDate === new Date().toISOString().split('T')[0]).length,
     total: routes.length,
-    pending: routes.filter(r => new Date(r.deliveryDate) > new Date()).length,
+    nova: {
+      count: routes.filter(r => r.type === 'nova').length,
+      cargo: getCargoStats(routes.filter(r => r.type === 'nova')),
+      loading: calculateLoadingPercentage(routes.filter(r => r.type === 'nova')),
+    },
+    antiga: {
+      count: routes.filter(r => r.type === 'antiga').length,
+      cargo: getCargoStats(routes.filter(r => r.type === 'antiga')),
+      loading: calculateLoadingPercentage(routes.filter(r => r.type === 'antiga')),
+    }
   };
 
   if (loading) {
@@ -338,28 +366,43 @@ export default function App() {
             </div>
             <div className="flex flex-col gap-1">
               <Label className="text-[11px] font-bold uppercase text-muted-foreground">Tipo</Label>
-              <Select value={formData.type} onValueChange={handleTypeChange}>
+              <Select value={formData.type} onValueChange={(value: 'nova' | 'antiga') => setFormData(prev => ({ ...prev, type: value }))}>
                 <SelectTrigger className="h-9 text-[13px]">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="nova">Rota Nova</SelectItem>
-                  <SelectItem value="final_mes">Final do Mês</SelectItem>
+                  <SelectItem value="antiga">Rota Antiga</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label className="text-[11px] font-bold uppercase text-muted-foreground">Data de Entrega</Label>
-            <Input 
-              name="deliveryDate" 
-              type="date" 
-              value={formData.deliveryDate} 
-              onChange={handleInputChange} 
-              className="h-9 text-[13px]"
-              required 
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <Label className="text-[11px] font-bold uppercase text-muted-foreground">Carga</Label>
+              <Select value={formData.cargoType} onValueChange={(value: 'plastico' | 'porcelana' | 'consolidado') => setFormData(prev => ({ ...prev, cargoType: value }))}>
+                <SelectTrigger className="h-9 text-[13px]">
+                  <SelectValue placeholder="Carga" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="plastico">Plástico</SelectItem>
+                  <SelectItem value="porcelana">Porcelana</SelectItem>
+                  <SelectItem value="consolidado">Consolidado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-[11px] font-bold uppercase text-muted-foreground">Data de Entrega</Label>
+              <Input 
+                name="deliveryDate" 
+                type="date" 
+                value={formData.deliveryDate} 
+                onChange={handleInputChange} 
+                className="h-9 text-[13px]"
+                required 
+              />
+            </div>
           </div>
 
           <div className="space-y-4 mt-2">
@@ -454,6 +497,19 @@ export default function App() {
                     />
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Status:</Label>
+                  <Button 
+                    type="button" 
+                    variant={delivery.status === 'carregado' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleDeliveryChange(index, 'status', delivery.status === 'carregado' ? 'pendente' : 'carregado')}
+                    className={`h-6 px-2 text-[9px] font-bold ${delivery.status === 'carregado' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                  >
+                    {delivery.status === 'carregado' ? 'CARREGADO' : 'PENDENTE'}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -485,22 +541,64 @@ export default function App() {
         </div>
 
         {/* Stats Bar */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-3 bg-white border-border shadow-none">
-            <p className="text-[11px] font-bold uppercase text-muted-foreground">Rotas Hoje</p>
-            <p className="text-[18px] font-bold">{stats.today}</p>
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="p-4 bg-white border-border shadow-sm flex flex-col justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase text-muted-foreground mb-1">Total Geral</p>
+              <p className="text-[24px] font-bold text-slate-900">{stats.total}</p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between text-[11px]">
+              <span className="text-blue-600 font-bold">NOVAS: {stats.nova.count}</span>
+              <span className="text-orange-600 font-bold">ANTIGAS: {stats.antiga.count}</span>
+            </div>
           </Card>
-          <Card className="p-3 bg-white border-border shadow-none">
-            <p className="text-[11px] font-bold uppercase text-muted-foreground">Total Geral</p>
-            <p className="text-[18px] font-bold">{stats.total}</p>
+
+          <Card className="p-4 bg-white border-border shadow-sm">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase text-blue-600">Status Carregamento (Novas)</p>
+                <p className="text-[20px] font-bold text-slate-900">{stats.nova.loading}%</p>
+              </div>
+              <Badge className="bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-50">NOVAS</Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-[10px] font-bold uppercase">
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Plástico</span>
+                <span className="text-slate-900">{stats.nova.cargo.plastico}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Porcelana</span>
+                <span className="text-slate-900">{stats.nova.cargo.porcelana}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Consol.</span>
+                <span className="text-slate-900">{stats.nova.cargo.consolidado}</span>
+              </div>
+            </div>
           </Card>
-          <Card className="p-3 bg-white border-border shadow-none">
-            <p className="text-[11px] font-bold uppercase text-muted-foreground">Status Frota</p>
-            <p className="text-[18px] font-bold text-green-600">92%</p>
-          </Card>
-          <Card className="p-3 bg-white border-border shadow-none">
-            <p className="text-[11px] font-bold uppercase text-muted-foreground">Pendentes</p>
-            <p className="text-[18px] font-bold">{stats.pending.toString().padStart(2, '0')}</p>
+
+          <Card className="p-4 bg-white border-border shadow-sm">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase text-orange-600">Status Carregamento (Antigas)</p>
+                <p className="text-[20px] font-bold text-slate-900">{stats.antiga.loading}%</p>
+              </div>
+              <Badge className="bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-50">ANTIGAS</Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-[10px] font-bold uppercase">
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Plástico</span>
+                <span className="text-slate-900">{stats.antiga.cargo.plastico}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Porcelana</span>
+                <span className="text-slate-900">{stats.antiga.cargo.porcelana}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Consol.</span>
+                <span className="text-slate-900">{stats.antiga.cargo.consolidado}</span>
+              </div>
+            </div>
           </Card>
         </section>
 
@@ -571,7 +669,7 @@ export default function App() {
               {/* Rota Nova Section */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 border-b border-border pb-1">
-                  <Badge className="bg-blue-600 text-white hover:bg-blue-600">ROTA NOVA</Badge>
+                  <Badge className="bg-blue-600 text-white hover:bg-blue-600">ROTAS NOVAS</Badge>
                   <span className="text-[11px] text-muted-foreground font-bold">{routesNova.length} registros</span>
                 </div>
                 <RouteTable 
@@ -582,14 +680,14 @@ export default function App() {
                 />
               </div>
 
-              {/* Rota Final do Mês Section */}
+              {/* Rota Antiga Section */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 border-b border-border pb-1">
-                  <Badge className="bg-orange-600 text-white hover:bg-orange-600">FINAL DO MÊS</Badge>
-                  <span className="text-[11px] text-muted-foreground font-bold">{routesFinalMes.length} registros</span>
+                  <Badge className="bg-orange-600 text-white hover:bg-orange-600">ROTAS ANTIGAS</Badge>
+                  <span className="text-[11px] text-muted-foreground font-bold">{routesAntiga.length} registros</span>
                 </div>
                 <RouteTable 
-                  routes={routesFinalMes} 
+                  routes={routesAntiga} 
                   user={user} 
                   onEdit={handleEdit} 
                   onDelete={handleDelete} 
@@ -618,11 +716,21 @@ interface RouteTableProps {
 }
 
 function RouteTable({ routes, user, onEdit, onDelete }: RouteTableProps) {
+  const getCargoBadgeColor = (type: string) => {
+    switch (type) {
+      case 'plastico': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'porcelana': return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'consolidado': return 'bg-amber-100 text-amber-700 border-amber-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
   return (
     <Table className="text-[12px]">
       <TableHeader className="bg-slate-50">
         <TableRow className="hover:bg-transparent">
           <TableHead className="w-[80px] font-bold py-2 px-3">Rota</TableHead>
+          <TableHead className="w-[100px] font-bold py-2 px-3">Carga</TableHead>
           <TableHead className="font-bold py-2 px-3">Entregas / Clientes</TableHead>
           <TableHead className="w-[100px] font-bold py-2 px-3">Data</TableHead>
           <TableHead className="w-[80px] text-right font-bold py-2 px-3">Ações</TableHead>
@@ -631,26 +739,35 @@ function RouteTable({ routes, user, onEdit, onDelete }: RouteTableProps) {
       <TableBody>
         {routes.length > 0 ? (
           routes.map((route) => (
-            <TableRow key={route.id} className="hover:bg-slate-50/50 group border-b border-border">
-              <TableCell className="font-bold py-2 px-3">#{route.routeNumber}</TableCell>
+            <TableRow 
+              key={route.id} 
+              className="hover:bg-slate-50/80 group border-b border-border cursor-pointer transition-colors"
+              onClick={() => onEdit(route)}
+            >
+              <TableCell className="font-bold py-2 px-3 text-primary">#{route.routeNumber}</TableCell>
+              <TableCell className="py-2 px-3">
+                <Badge variant="outline" className={`text-[10px] font-bold uppercase px-1.5 py-0 ${getCargoBadgeColor(route.cargoType)}`}>
+                  {route.cargoType}
+                </Badge>
+              </TableCell>
               <TableCell className="py-2 px-3">
                 <div className="flex flex-wrap gap-1">
                   {route.deliveries.map((d, i) => (
-                    <div key={i} className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded text-[11px] border border-slate-200">
+                    <div key={i} className="flex items-center gap-1 bg-white px-2 py-0.5 rounded text-[11px] border border-slate-200 shadow-sm">
+                      <div className={`w-1.5 h-1.5 rounded-full ${d.status === 'carregado' ? 'bg-green-500' : 'bg-slate-300'}`} />
                       <span className="font-bold text-primary">{d.uf}</span>
                       <span className="text-muted-foreground">|</span>
                       <span className="truncate max-w-[150px]" title={`${d.clientName} - ${d.location}`}>
-                        {d.clientName} ({d.location})
+                        {d.clientName}
                       </span>
-                      <span className="text-[10px] bg-white px-1 rounded border border-slate-200">NF: {d.invoiceNumber}</span>
                     </div>
                   ))}
                 </div>
               </TableCell>
-              <TableCell className="py-2 px-3">
+              <TableCell className="py-2 px-3 font-medium">
                 {format(new Date(route.deliveryDate), 'dd/MM/yyyy')}
               </TableCell>
-              <TableCell className="text-right py-2 px-3">
+              <TableCell className="text-right py-2 px-3" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {route.createdBy === user.uid && (
                     <>
@@ -678,7 +795,7 @@ function RouteTable({ routes, user, onEdit, onDelete }: RouteTableProps) {
           ))
         ) : (
           <TableRow>
-            <TableCell colSpan={4} className="h-20 text-center text-muted-foreground italic">
+            <TableCell colSpan={5} className="h-20 text-center text-muted-foreground italic">
               Nenhum registro nesta categoria.
             </TableCell>
           </TableRow>
