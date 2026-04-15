@@ -14,6 +14,9 @@ export default defineConfig(({mode}) => {
     plugins: [react(), tailwindcss(), tsconfigPaths()],
     base: '/Logistica-Pro/',
     resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
       extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
     },
     define: {
