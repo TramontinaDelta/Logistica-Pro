@@ -13,6 +13,9 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [react(), tailwindcss(), tsconfigPaths()],
     base: '/Logistica-Pro/',
+    resolve: {
+      extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
+    },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
     },
