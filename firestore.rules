@@ -6,11 +6,11 @@
 // Document ID: auto-generated
 // Fields:
 //   - routeNumber: string (required)
-//   - type: string (required, 'nova' or 'antiga')
+//   - type: string (required, 'nova', 'antiga', or 'final_mes')
 //   - cargoType: string (required, 'plastico', 'porcelana', or 'consolidado')
 //   - deliveries: list (required, list of objects)
 //   - releasedToLoading: boolean (optional)
-//   - createdAt: number (required)
+//   - createdAt: number or timestamp (required)
 //   - createdBy: string (required)
 //
 // ===============================================================
@@ -26,26 +26,15 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
-    function isValidDelivery(delivery) {
-      return delivery.location is string && delivery.location.size() > 0 &&
-             delivery.uf is string && delivery.uf.size() == 2 &&
-             delivery.region is string &&
-             delivery.clientName is string &&
-             delivery.orderNumber is string &&
-             delivery.invoiceNumber is string &&
-             (!('deliveryDate' in delivery) || delivery.deliveryDate is string) &&
-             (!('status' in delivery) || delivery.status in ['pendente', 'carregado']);
-    }
 
     function isValidRoute(data) {
       return data.keys().hasAll(['routeNumber', 'type', 'cargoType', 'deliveries', 'createdAt', 'createdBy']) &&
              data.routeNumber is string && data.routeNumber.size() > 0 &&
-             data.type in ['nova', 'antiga'] &&
+             data.type in ['nova', 'antiga', 'final_mes'] &&
              data.cargoType in ['plastico', 'porcelana', 'consolidado'] &&
              data.deliveries is list &&
              (!('releasedToLoading' in data) || data.releasedToLoading is bool) &&
-             data.createdAt is number &&
+             (data.createdAt is number || data.createdAt is timestamp) &&
              data.createdBy is string && data.createdBy == request.auth.uid;
     }
 
