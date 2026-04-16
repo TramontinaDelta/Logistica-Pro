@@ -89,6 +89,7 @@ const INITIAL_DELIVERY: DeliveryDetail = {
   clientName: '',
   orderNumber: '',
   invoiceNumber: '',
+  deliveryDate: new Date().toISOString().split('T')[0],
   status: 'pendente',
 };
 
@@ -97,7 +98,6 @@ const INITIAL_FORM_DATA: RouteFormData = {
   type: 'nova',
   cargoType: 'consolidado',
   deliveries: [{ ...INITIAL_DELIVERY }],
-  deliveryDate: new Date().toISOString().split('T')[0],
 };
 
 const UFS = [
@@ -226,7 +226,6 @@ export default function App() {
       type: route.type,
       cargoType: route.cargoType || 'consolidado',
       deliveries: route.deliveries,
-      deliveryDate: route.deliveryDate,
     });
     setEditingId(route.id);
     setIsSidebarOpen(true);
@@ -283,7 +282,7 @@ export default function App() {
       );
     
     const matchesUf = filterUf === 'all' || route.deliveries.some(d => d.uf === filterUf);
-    const matchesDate = !filterDate || route.deliveryDate === filterDate;
+    const matchesDate = !filterDate || route.deliveries.some(d => d.deliveryDate === filterDate);
     
     return matchesSearch && matchesUf && matchesDate;
   });
@@ -419,7 +418,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <div className="flex flex-col gap-1">
               <Label className="text-[11px] font-bold uppercase text-muted-foreground">Carga</Label>
               <Select value={formData.cargoType} onValueChange={(value: 'plastico' | 'porcelana' | 'consolidado') => setFormData(prev => ({ ...prev, cargoType: value }))}>
@@ -432,17 +431,6 @@ export default function App() {
                   <SelectItem value="consolidado">Consolidado</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-[11px] font-bold uppercase text-muted-foreground">Data de Entrega</Label>
-              <Input 
-                name="deliveryDate" 
-                type="date" 
-                value={formData.deliveryDate} 
-                onChange={handleInputChange} 
-                className="h-9 text-[13px]"
-                required 
-              />
             </div>
           </div>
 
@@ -505,15 +493,27 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] font-bold uppercase text-muted-foreground">Cliente</Label>
-                  <Input 
-                    value={delivery.clientName} 
-                    onChange={(e) => handleDeliveryChange(index, 'clientName', e.target.value)} 
-                    placeholder="Nome do Cliente" 
-                    className="h-8 text-[12px]"
-                    required 
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Cliente</Label>
+                    <Input 
+                      value={delivery.clientName} 
+                      onChange={(e) => handleDeliveryChange(index, 'clientName', e.target.value)} 
+                      placeholder="Nome do Cliente" 
+                      className="h-8 text-[12px]"
+                      required 
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Data de Entrega</Label>
+                    <Input 
+                      type="date"
+                      value={delivery.deliveryDate} 
+                      onChange={(e) => handleDeliveryChange(index, 'deliveryDate', e.target.value)} 
+                      className="h-8 text-[12px]"
+                      required 
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -818,7 +818,6 @@ function RouteTable({ routes, user, onEdit, onDelete, onRelease }: RouteTablePro
           <TableHead className="w-[80px] font-bold py-2 px-3">Rota</TableHead>
           <TableHead className="w-[100px] font-bold py-2 px-3">Carga</TableHead>
           <TableHead className="font-bold py-2 px-3">Entregas / Clientes</TableHead>
-          <TableHead className="w-[100px] font-bold py-2 px-3">Data</TableHead>
           <TableHead className="w-[120px] text-right font-bold py-2 px-3">Ações</TableHead>
         </TableRow>
       </TableHeader>
@@ -850,6 +849,14 @@ function RouteTable({ routes, user, onEdit, onDelete, onRelease }: RouteTablePro
                         <span className="truncate max-w-[150px] font-medium" title={d.clientName}>
                           {d.clientName}
                         </span>
+                        {d.deliveryDate && (
+                          <>
+                            <span className="text-muted-foreground">|</span>
+                            <span className="text-blue-600 font-bold">
+                              {format(new Date(d.deliveryDate), 'dd/MM/yyyy')}
+                            </span>
+                          </>
+                        )}
                       </div>
                       {(d.orderNumber || d.invoiceNumber) && (
                         <div className="flex items-center gap-2 pl-2.5 mt-0.5 text-[10px] text-slate-500">
@@ -861,9 +868,6 @@ function RouteTable({ routes, user, onEdit, onDelete, onRelease }: RouteTablePro
                     </div>
                   ))}
                 </div>
-              </TableCell>
-              <TableCell className="py-2 px-3 font-medium">
-                {format(new Date(route.deliveryDate), 'dd/MM/yyyy')}
               </TableCell>
               <TableCell className="text-right py-2 px-3" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
