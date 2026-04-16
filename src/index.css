@@ -115,15 +115,3 @@
     @apply font-sans;
     }
 }
-
-@keyframes drive-truck {
-  0% {
-    transform: translateX(-100px);
-  }
-  100% {
-    transform: translateX(100vw);
-  }
-}
-.animate-drive-truck {
-  animation: drive-truck 40s linear infinite;
-}
