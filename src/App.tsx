@@ -300,7 +300,10 @@ export default function App() {
   const routesAntiga = filteredRoutes.filter(r => r.type !== 'nova');
 
   const isRouteLoaded = (route: Route) => {
-    return loadingCards.some(c => c.nRotaLog === route.routeNumber && c.status === 'Embarcado');
+    if (!route.releasedToLoading) return false;
+    const matchingCards = loadingCards.filter(c => c.nRotaLog === route.routeNumber);
+    if (matchingCards.length === 0) return false;
+    return matchingCards[matchingCards.length - 1].status === 'Embarcado';
   };
 
   const getCargoStats = (routeList: Route[]) => {
@@ -812,7 +815,7 @@ export default function App() {
                     <RouteTable 
                       routes={routesNova} 
                       user={user} 
-                      loadingCards={loadingCards}
+                      isRouteLoaded={isRouteLoaded}
                       onEdit={handleEdit} 
                       onDelete={handleDelete} 
                       onRelease={handleOpenReleaseDialog}
@@ -828,7 +831,7 @@ export default function App() {
                     <RouteTable 
                       routes={routesAntiga} 
                       user={user} 
-                      loadingCards={loadingCards}
+                      isRouteLoaded={isRouteLoaded}
                       onEdit={handleEdit} 
                       onDelete={handleDelete} 
                       onRelease={handleOpenReleaseDialog}
@@ -886,13 +889,13 @@ export default function App() {
 interface RouteTableProps {
   routes: Route[];
   user: User;
-  loadingCards: LoadingCard[];
+  isRouteLoaded: (route: Route) => boolean;
   onEdit: (route: Route) => void;
   onDelete: (id: string, createdBy: string) => void;
   onRelease: (route: Route) => void;
 }
 
-function RouteTable({ routes, user, loadingCards, onEdit, onDelete, onRelease }: RouteTableProps) {
+function RouteTable({ routes, user, isRouteLoaded, onEdit, onDelete, onRelease }: RouteTableProps) {
   const getCargoBadgeColor = (type: string) => {
     switch (type) {
       case 'plastico': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
@@ -923,7 +926,7 @@ function RouteTable({ routes, user, loadingCards, onEdit, onDelete, onRelease }:
               <TableCell className="font-bold py-2 px-3 text-primary">
                 <div className="flex flex-col gap-1">
                   <span>#{route.routeNumber}</span>
-                  {loadingCards.some(c => c.nRotaLog === route.routeNumber && c.status === 'Embarcado') && (
+                  {isRouteLoaded(route) && (
                     <Badge className="bg-green-600 text-white text-[9px] px-1 py-0 w-fit">EMBARCADO</Badge>
                   )}
                 </div>
@@ -951,7 +954,7 @@ function RouteTable({ routes, user, loadingCards, onEdit, onDelete, onRelease }:
                           <>
                             <span className="text-muted-foreground">|</span>
                             <span className="text-blue-600 font-bold">
-                              {format(new Date(d.deliveryDate), 'dd/MM/yyyy')}
+                              {d.deliveryDate.split('-').reverse().join('/')}
                             </span>
                           </>
                         )}
