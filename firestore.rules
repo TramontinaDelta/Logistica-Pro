@@ -6,9 +6,10 @@
 // Document ID: auto-generated
 // Fields:
 //   - routeNumber: string (required)
-//   - type: string (required, 'nova' or 'final_mes')
+//   - type: string (required, 'nova' or 'antiga')
+//   - cargoType: string (required, 'plastico', 'porcelana', or 'consolidado')
 //   - deliveries: list (required, list of objects)
-//   - deliveryDate: string (required)
+//   - releasedToLoading: boolean (optional)
 //   - createdAt: number (required)
 //   - createdBy: string (required)
 //
@@ -32,15 +33,18 @@ service cloud.firestore {
              delivery.region is string &&
              delivery.clientName is string &&
              delivery.orderNumber is string &&
-             delivery.invoiceNumber is string;
+             delivery.invoiceNumber is string &&
+             (!('deliveryDate' in delivery) || delivery.deliveryDate is string) &&
+             (!('status' in delivery) || delivery.status in ['pendente', 'carregado']);
     }
 
     function isValidRoute(data) {
-      return data.keys().hasAll(['routeNumber', 'type', 'deliveries', 'deliveryDate', 'createdAt', 'createdBy']) &&
+      return data.keys().hasAll(['routeNumber', 'type', 'cargoType', 'deliveries', 'createdAt', 'createdBy']) &&
              data.routeNumber is string && data.routeNumber.size() > 0 &&
-             data.type in ['nova', 'final_mes'] &&
+             data.type in ['nova', 'antiga'] &&
+             data.cargoType in ['plastico', 'porcelana', 'consolidado'] &&
              data.deliveries is list &&
-             data.deliveryDate is string &&
+             (!('releasedToLoading' in data) || data.releasedToLoading is bool) &&
              data.createdAt is number &&
              data.createdBy is string && data.createdBy == request.auth.uid;
     }
