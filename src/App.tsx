@@ -239,8 +239,13 @@ export default function App() {
         
         orders.forEach(o => {
           const norm = normalize(o);
-          if (mapping[norm]) {
-            nfsEncontradas.push(...mapping[norm]);
+          const result = mapping[norm] || mapping[o];
+          if (result) {
+            if (Array.isArray(result)) {
+              nfsEncontradas.push(...result);
+            } else {
+              nfsEncontradas.push(result);
+            }
           }
         });
         
@@ -725,9 +730,21 @@ export default function App() {
               const newDeliveries = formData.deliveries.map(d => {
                 if (!d.orderNumber) return d;
                 const orders = extractOrders(d.orderNumber);
-                const nfs = orders.map(o => mapping[o] || mapping[normalize(o)]).filter(Boolean);
-                if (nfs.length > 0) {
-                   return { ...d, invoiceNumber: nfs.join(' / ') };
+                let nfsEncontradas: string[] = [];
+                orders.forEach(o => {
+                  const norm = normalize(o);
+                  const result = mapping[norm] || mapping[o];
+                  if (result) {
+                    if (Array.isArray(result)) {
+                      nfsEncontradas.push(...result);
+                    } else {
+                       nfsEncontradas.push(result);
+                    }
+                  }
+                });
+                
+                if (nfsEncontradas.length > 0) {
+                   return { ...d, invoiceNumber: Array.from(new Set(nfsEncontradas)).join(', ') };
                 }
                 return d;
               });
