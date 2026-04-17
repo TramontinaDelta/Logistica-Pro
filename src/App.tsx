@@ -1147,9 +1147,9 @@ function RouteTable({ routes, user, searchTerm = '', getRouteLoadingStatus, onEd
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className={`h-7 w-7 ${route.releasedToLoading ? 'text-green-600 hover:text-green-700 hover:bg-green-50' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'}`}
+                        className={`h-7 w-7 ${loadingStatus ? 'text-green-600 hover:text-green-700 hover:bg-green-50' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'}`}
                         onClick={() => onRelease(route)}
-                        title={route.releasedToLoading ? "Liberar Novamente" : "Liberar para Carregamento"}
+                        title={loadingStatus ? "Liberar Novamente" : "Liberar para Carregamento"}
                       >
                         <Send className="w-3.5 h-3.5" />
                       </Button>
