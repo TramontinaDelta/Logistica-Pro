@@ -206,14 +206,74 @@ export default function App() {
     setFormData(prev => ({ ...prev, type: value }));
   };
 
+  const triggerAutoSync = async (routeId: string, currentData: RouteFormData) => {
+    // Extrai os pedidos da rota salva
+    const extractOrders = (text: string) => text.match(/\b\d+-\d+\b/g) || [];
+    const ordersToFetch = new Set<string>();
+
+    currentData.deliveries.forEach(d => {
+      if (d.orderNumber && !d.invoiceNumber) {
+        extractOrders(d.orderNumber).forEach(o => ordersToFetch.add(o));
+      }
+    });
+
+    if (ordersToFetch.size === 0) return; // Se não houver pendentes, finaliza.
+
+    try {
+      const url = "https://script.google.com/macros/s/AKfycbx-Lmqxk-Wbss3icKxOZ0KYzrOWCOn9oOflvQ7ax29jiGYe2Ih3t3z52-nw0hR0kTJHpg/exec";
+      const allOrders = Array.from(ordersToFetch);
+      const mapping = await nfService.fetchNFs(allOrders, url);
+      
+      const normalize = (o: string) => {
+        const [ped, dig] = o.split('-');
+        if (!dig) return o;
+        return `${ped}-${parseInt(dig, 10)}`;
+      };
+
+      let updated = false;
+      const newDeliveries = currentData.deliveries.map(d => {
+        if (!d.orderNumber || d.invoiceNumber) return d;
+        
+        const orders = extractOrders(d.orderNumber);
+        const nfsEncontradas: string[] = [];
+        
+        orders.forEach(o => {
+          const norm = normalize(o);
+          if (mapping[norm]) {
+            nfsEncontradas.push(...mapping[norm]);
+          }
+        });
+        
+        if (nfsEncontradas.length > 0) {
+          updated = true;
+          return { ...d, invoiceNumber: Array.from(new Set(nfsEncontradas)).join(', ') };
+        }
+        return d;
+      });
+
+      if (updated) {
+        await routeService.updateRoute(routeId, { ...currentData, deliveries: newDeliveries });
+      }
+    } catch(err) {
+      console.error("Auto-sync NFs failed in background:", err);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      let savedId = editingId;
       if (editingId) {
         await routeService.updateRoute(editingId, formData);
       } else {
-        await routeService.addRoute(formData);
+        savedId = await routeService.addRoute(formData);
       }
+      
+      // Gatilho de sincronização em segundo plano!
+      if (savedId) {
+        triggerAutoSync(savedId, formData);
+      }
+
       handleCloseDialog();
       setIsSidebarOpen(false);
     } catch (error) {
