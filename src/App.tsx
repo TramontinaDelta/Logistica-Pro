@@ -635,16 +635,7 @@ export default function App() {
             type="button" 
             variant="secondary"
             onClick={async () => {
-              let url = localStorage.getItem('NF_GAS_URL');
-              if (!url) {
-                const input = window.prompt("Insira a URL Web App do Google Apps Script para sincronização de Notas Fiscais:");
-                if (input) {
-                  localStorage.setItem('NF_GAS_URL', input.trim());
-                  url = input.trim();
-                } else {
-                  return;
-                }
-              }
+              const url = "https://script.google.com/macros/s/AKfycbx-Lmqxk-Wbss3icKxOZ0KYzrOWCOn9oOflvQ7ax29jiGYe2Ih3t3z52-nw0hR0kTJHpg/exec";
 
               // Extract relevant orders
               const extractOrders = (text: string) => text.match(/\b\d+-\d+\b/g) || [];
@@ -801,24 +792,19 @@ export default function App() {
                   <div className="w-px bg-slate-100 my-2"></div>
                   <div 
                     className="flex-1 flex flex-col justify-between cursor-pointer hover:bg-slate-50 transition-colors p-2 -m-2 rounded"
-                    onClick={() => {
-                      const tomorrow = new Date();
-                      tomorrow.setDate(tomorrow.getDate() + 1);
-                      setFilterDate(tomorrow.toISOString().split('T')[0]);
-                      setActiveTab('logistica');
-                    }}
+                    onClick={() => setActiveTab('carregamento')}
                   >
                     <div>
                       <p className="text-[10px] font-bold uppercase text-blue-600 mb-1 leading-tight">Para<br/>Amanhã</p>
                       <p className="text-[20px] font-bold text-slate-900">
-                        {
-                          routes.filter(r => {
-                            const tomorrow = new Date();
-                            tomorrow.setDate(tomorrow.getDate() + 1);
-                            const tomorrowISO = tomorrow.toISOString().split('T')[0];
-                            return r.deliveries.some(d => d.deliveryDate === tomorrowISO);
-                          }).length
-                        }
+                        {loadingCards.filter(c => {
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          const tomorrowISO = tomorrow.toISOString().split('T')[0];
+                          const [year, month, day] = tomorrowISO.split('-');
+                          const tomorrowBR = `${day}/${month}/${year}`;
+                          return c.dataSep === tomorrowISO || c.dataSep === tomorrowBR;
+                        }).length}
                       </p>
                     </div>
                   </div>
